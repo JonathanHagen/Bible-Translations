@@ -28,7 +28,12 @@ built-ins only (Node 18 or newer).
   The rebuild strips that markup and puts the letters back into the
   published text, guided by a source with diacritics, only where the place
   is unambiguous. With its accents deleted, every rebuilt verse equals the
-  published verse with the markup stripped.
+  published verse with the markup stripped. One letter the alignment cannot
+  place is pinned by hand in `tools/lib/croatian.js` (`PINNED`): Luke 1:67,
+  whose published row ends with the tail of the source's 1:68 and reads
+  "to pohodi" for "što pohodi". The rebuild also lists any word a
+  neighbouring source verse prints with a letter the row lacks; with the pin
+  there are none.
 
 ### Sources (pinned)
 
@@ -85,7 +90,7 @@ Rebuilt from these inputs it is:
 |---|---|---|
 | `finnish.json` (default) | 4,936,536 | `1ae55db524807f355bc27e3e4dc6544b56710897a87fc6857bb7486627856281` |
 | `finnish.json` (`--allow-ac`, with ZEC 14:21) | 4,936,797 | `a6ecf33235d3105b5617f7d1cba5ef30f0b3924ceca9f104f2321e412ef7b7ef` |
-| `croatian.json` | 4,122,997 | `2760bea6692f29dbf6e45a4a42aeae29e5f10d561e322dabd812297738b25639` |
+| `croatian.json` | 4,122,999 | `0f0bd3cd4f10e52427148b2f830e1403fc265accf6faddafc9df0fb79b672c53` |
 
 ### Validating before an upload
 
@@ -113,6 +118,6 @@ rows all byte-identical with new rows only continuing a chapter; Finnish:
 the expected additions, every book ending with its source's last verse, the
 stray `2CO 19` untouched; Croatian: deleting the accents gives back the
 published text with its markup stripped, no markup left, č ć š ž đ
-present and no other non-ASCII character; each loader reads every book,
-chapter and row of both files, and prints the sample chapter's XML from
-each. It exits 1 when a check fails.
+present and no other non-ASCII character, the pinned letters in place;
+each loader reads every book, chapter and row of both files, and prints the
+sample chapter's XML from each. It exits 1 when a check fails.

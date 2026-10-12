@@ -165,6 +165,7 @@ function croatian(args) {
   const aligned = [];
   const noGuide = [];
   const skipped = {};
+  const pinned = [];
   let placedTotal = 0;
   const out = JSON.parse(JSON.stringify(orig.json));
   for (const b of out.books) {
@@ -204,7 +205,9 @@ function croatian(args) {
           }
           if (res) { tally.aligned++; aligned.push({ key, from, placed: res.placed }); } else { tally.noGuide++; noGuide.push(key); }
         }
-        const text = res ? res.text : ascii;
+        const pin = hr.applyPinned(key, res ? res.text : ascii);
+        const text = pin.text;
+        for (const pn of pin.applied) pinned.push({ key, ascii: pn.ascii, text: pn.text, source: pn.source });
         if (res) {
           placedTotal += res.placed;
           for (const [ch, n] of Object.entries(res.skipped)) skipped[ch] = (skipped[ch] || 0) + n;
@@ -234,7 +237,20 @@ function croatian(args) {
   }
   const unknownRestored = [];
   const missed = [];
+  const missedNearby = [];
+  for (const p of hr.PINNED) {
+    if (!pinned.some((x) => x.key === p.key && x.ascii === p.ascii)) throw new Error(`pinned ${p.key}: no such row in the published file`);
+  }
   for (const b of out.books) for (const c of b.chapters) for (const v of c.verses) {
+    // The same check against the verse's own guide and its neighbours (the
+    // two texts split verses differently).
+    const key = `${b.num} ${c.num}:${v.num}`;
+    const keys = order.get(b.num);
+    const at = keys.indexOf(key);
+    if (at !== -1) {
+      const near = keys.slice(Math.max(0, at - 1), at + 2).map((k) => guide.get(k)).join(' ');
+      for (const w of hr.lostNearby(v.text, near)) missedNearby.push(`${key} ${w}`);
+    }
     for (const w of hr.words(v.text)) {
       if (/[^\x00-\x7F]/.test(w)) { if (!vocab.has(w) && !vocab.has(w.replace(/\u0110/g, '\u00D0'))) unknownRestored.push(`${b.num} ${c.num}:${v.num} ${w}`); }
       else if (!vocab.has(w) && lost.has(w)) missed.push(`${b.num} ${c.num}:${v.num} ${w}->${[...lost.get(w)].join('|')}`);
@@ -261,12 +277,14 @@ function croatian(args) {
   if (noGuide.length) log(`  no guide: ${noGuide.join(', ')}`);
   log(`  vocabulary: restored words not in the source ${unknownRestored.length}${unknownRestored.length ? `: ${unknownRestored.join(', ')}` : ''}`);
   log(`  vocabulary: ASCII words that look like a source word missing its letters ${missed.length}${missed.length ? `:\n    ${missed.join('\n    ')}` : ''}`);
+  log(`  vocabulary: ASCII words a neighbouring source verse prints with its letters ${missedNearby.length}${missedNearby.length ? `:\n    ${missedNearby.join('\n    ')}` : ''}`);
+  log(`  pinned letters (${pinned.length}): ${pinned.map((p) => `${p.key} "${p.ascii}" -> "${p.text}"`).join(', ') || 'none'}`);
   log(`  out: ${args.out} ${written.bytes} bytes sha256 ${written.sha256}`);
 
   if (args.report) {
     fs.writeFileSync(args.report, `${JSON.stringify({
       mode: 'croatian', inputs: { orig: orig.sha256, crosaric: sha256(srcBuf) }, strip, minBlock, junk, tally,
-      placed: placedTotal, skipped, relocated, aligned, noGuide, unknownRestored, missed, out: { file: args.out, ...written },
+      placed: placedTotal, skipped, relocated, aligned, noGuide, unknownRestored, missed, missedNearby, pinned, out: { file: args.out, ...written },
     }, null, 2)}\n`);
   }
 }

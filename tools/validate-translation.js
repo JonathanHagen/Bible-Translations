@@ -146,6 +146,8 @@ function croatianChecks(orig, next) {
   const lower = [...'čćšžđ'];
   check('č ć š ž đ are present', lower.every((ch) => counts[ch] > 0), Object.entries(counts).map(([ch, n]) => `${ch} ${n}`).join(', '));
   check('the only non-ASCII characters are those letters', !Object.keys(foreign).length, Object.entries(foreign).map(([ch, n]) => `${JSON.stringify(ch)} U+${ch.charCodeAt(0).toString(16).toUpperCase()} ${n}`).join(', '));
+  const pinsMissing = hr.PINNED.filter((p) => !(nm.get(p.key) || '').includes(p.text)).map((p) => `${p.key} "${p.text}"`);
+  check('the pinned letters are in place (tools/lib/croatian.js PINNED)', !pinsMissing.length, pinsMissing.length ? list(pinsMissing) : hr.PINNED.map((p) => `${p.key} "${p.text}" (${p.source})`).join('\n'));
 }
 
 // ---- loaders -------------------------------------------------------------

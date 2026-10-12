@@ -162,7 +162,68 @@ function reaccent(ascii, guide, { minBlock = 1 } = {}) {
 // Words (letters only) of a text, for the vocabulary check.
 const words = (s) => s.match(/[A-Za-z\u00C0-\u024F]+/g) || [];
 
+// Letters the alignment cannot place on its own, pinned one by one with the
+// source verse that prints them. Each is a phrase of one rebuilt row (ascii,
+// found exactly once there) and the same phrase with its letters (text);
+// deleting the letters from text gives ascii again, so a pin keeps the
+// rebuild's promise that the accents deleted give back the published row.
+//
+//   LUK 1:67  The published row is the source's 1:67 joined to the tail of
+//             its 1:68 ("... prorokovati: to pohodi i otkupi narod svoj!"),
+//             with the \u0161 of "\u0161to" lost; the file has no row 1:68. Guided by
+//             the source's 1:67 alone, or by 1:67 and 1:68 together, the
+//             first matching run ends at "prorokovati: " with its space, so
+//             the \u0161 falls at the start of the next run, a gap reaccent never
+//             fills; and "to" is a word, so the vocabulary check passes it.
+const PINNED = [
+  {
+    key: 'LUK 1:67',
+    ascii: 'prorokovati: to pohodi',
+    text: 'prorokovati: \u0161to pohodi',
+    source: 'LUK 1:68 "Blagoslovljen Gospodin Bog Izraelov, \u0161to pohodi i otkupi narod svoj!"',
+  },
+];
+for (const p of PINNED) {
+  if (deleteNonAscii(p.text) !== p.ascii) throw new Error(`pinned ${p.key}: its text does not reduce to its ascii`);
+}
+
+// Apply the pins for one row. Returns the row's text and the pins applied.
+// A pin whose phrase is not in its row exactly once is an error: the
+// published file or the rebuild changed, and the pin needs a fresh look.
+function applyPinned(key, text) {
+  let out = text;
+  const applied = [];
+  for (const p of PINNED.filter((x) => x.key === key)) {
+    const at = out.indexOf(p.ascii);
+    if (at === -1 || out.indexOf(p.ascii, at + 1) !== -1) {
+      throw new Error(`pinned ${key}: "${p.ascii}" is not in the row exactly once`);
+    }
+    out = out.slice(0, at) + p.text + out.slice(at + p.ascii.length);
+    applied.push(p);
+  }
+  return { text: out, applied };
+}
+
+// The words of a rebuilt row that a nearby source verse prints with a
+// Croatian letter the row lacks: an ASCII word that is not a word of the
+// guide but is one of the guide's words with its letters deleted ("to" for
+// "\u0161to"). The global vocabulary check misses these when the ASCII form is a
+// word too. Returns "word->letters" strings.
+function lostNearby(text, guideText) {
+  const gw = new Set(words(guideText));
+  const lost = new Map();
+  for (const w of gw) {
+    if (!/[^\x00-\x7F]/.test(w) || ![...w].every((ch) => ch.charCodeAt(0) < 128 || RESTORE.has(ch))) continue;
+    const sk = deleteNonAscii(w);
+    if (!lost.has(sk)) lost.set(sk, new Set());
+    lost.get(sk).add(w);
+  }
+  return words(text)
+    .filter((w) => !/[^\x00-\x7F]/.test(w) && !gw.has(w) && lost.has(w))
+    .map((w) => `${w}->${[...lost.get(w)].join('|')}`);
+}
+
 module.exports = {
   JUNK_TYPES, stripJunk, hasJunk, RESTORE, RESTORED_LETTERS, deleteNonAscii, skeleton,
-  compactAscii, guideForm, matchingBlocks, reaccent, words,
+  compactAscii, guideForm, matchingBlocks, reaccent, words, PINNED, applyPinned, lostNearby,
 };
