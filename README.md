@@ -47,9 +47,14 @@ built-ins only (Node 18 or newer).
 A tree digest is the sha256 of the lines `<file name>\0<sha256 of the file>\n`
 for the directory's files in name order; the rebuild prints it.
 
-The rebuild refuses any original but the published one:
+The rebuild refuses any original but the one published before it:
 `finnish.json` sha256 `393c05e6172309bdda2d7e0e31236c101cd03ee3e2146692bdfad47abbc76f2c`,
 `croatian.json` sha256 `dc9ef13a7e8a7766f53d4bd693c88f739861d10a615ea04e95cae39c31284004`.
+
+Since 12 October 2026 the release carries the rebuilt files (the `--allow-ac`
+Finnish build and the Croatian build in the table below), and the originals
+are no longer on it. To run the rebuild again, start from copies of the
+originals saved before the upload.
 
 ### Commands
 
@@ -57,10 +62,9 @@ Work outside the repository; keep downloads apart from the tools.
 
 ```sh
 mkdir -p rebuild/orig rebuild/src rebuild/out && cd rebuild
-for id in finnish croatian; do
-  curl -fL -o orig/$id.json \
-    https://github.com/JonathanHagen/Bible-Translations/releases/download/translations-v1/$id.json
-done
+# The originals, saved before the upload (the release now serves the rebuilt files)
+cp /path/to/backup/finnish.json /path/to/backup/croatian.json orig/
+shasum -a 256 orig/finnish.json orig/croatian.json
 SM=https://raw.githubusercontent.com/scrollmapper/bible_databases/e1b254cef86d0e65b1a5d1a94b8b112d0f296a2c
 curl -fL -o src/FinPR.json $SM/formats/json/FinPR.json
 curl -fL -o src/CroSaric.json $SM/formats/json/CroSaric.json
@@ -92,10 +96,19 @@ Rebuilt from these inputs it is:
 | `finnish.json` (`--allow-ac`, with ZEC 14:21) | 4,936,797 | `a6ecf33235d3105b5617f7d1cba5ef30f0b3924ceca9f104f2321e412ef7b7ef` |
 | `croatian.json` | 4,122,999 | `0f0bd3cd4f10e52427148b2f830e1403fc265accf6faddafc9df0fb79b672c53` |
 
+The release serves the `--allow-ac` Finnish build and the Croatian build. To
+check what it serves:
+
+```sh
+for id in finnish croatian; do
+  curl -fsSL https://github.com/JonathanHagen/Bible-Translations/releases/download/translations-v1/$id.json | shasum -a 256
+done
+```
+
 ### Validating before an upload
 
-`tools/validate-translation.js` compares a rebuilt file with the published
-one and loads both through the app's own `src/services/bibleLoader.js`, with
+`tools/validate-translation.js` compares a rebuilt file with the original
+and loads both through the app's own `src/services/bibleLoader.js`, with
 its file-system and bundled-KJV imports stubbed, so a file is proven against
 the loader in the store build and the current one:
 
